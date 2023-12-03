@@ -6,14 +6,13 @@
 
 from __future__ import absolute_import, division, print_function
 
-import os
 import random
-import numpy as np
-import copy
-from PIL import Image  # using pillow-simd for increased speed
+from collections import defaultdict
 
+import numpy as np
 import torch
 import torch.utils.data as data
+from PIL import Image  # using pillow-simd for increased speed
 from torchvision import transforms
 
 
@@ -38,6 +37,7 @@ class MonoDataset(data.Dataset):
         is_train
         img_ext
     """
+
     def __init__(self,
                  data_path,
                  filenames,
@@ -54,7 +54,7 @@ class MonoDataset(data.Dataset):
         self.height = height
         self.width = width
         self.num_scales = num_scales
-        self.interp = Image.ANTIALIAS
+        self.interp = Image.LANCZOS
 
         self.frame_idxs = frame_idxs
 
@@ -135,7 +135,7 @@ class MonoDataset(data.Dataset):
             2       images resized to (self.width // 4, self.height // 4)
             3       images resized to (self.width // 8, self.height // 8)
         """
-        inputs = {}
+        inputs = defaultdict(dict)
 
         do_color_aug = self.is_train and random.random() > 0.5
         do_flip = self.is_train and random.random() > 0.5
@@ -173,10 +173,9 @@ class MonoDataset(data.Dataset):
             inputs[("inv_K", scale)] = torch.from_numpy(inv_K)
 
         if do_color_aug:
-            color_aug = transforms.ColorJitter.get_params(
-                self.brightness, self.contrast, self.saturation, self.hue)
+            color_aug = transforms.ColorJitter(self.brightness, self.contrast, self.saturation, self.hue)
         else:
-            color_aug = (lambda x: x)
+            color_aug = lambda x: x
 
         self.preprocess(inputs, color_aug)
 

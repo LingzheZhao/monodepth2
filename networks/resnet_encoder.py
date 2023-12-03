@@ -11,8 +11,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torchvision.models as models
-import torch.utils.model_zoo as model_zoo
-
 
 class ResNetMultiImageInput(models.ResNet):
     """Constructs a resnet model with varying number of input images.
@@ -46,13 +44,18 @@ def resnet_multiimage_input(num_layers, pretrained=False, num_input_images=1):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         num_input_images (int): Number of frames stacked as input
     """
-    assert num_layers in [18, 50], "Can only run with 18 or 50 layer resnet"
+    if num_layers == 18:
+        weights_url = models.ResNet18_Weights.IMAGENET1K_V1.url
+    elif num_layers == 50:
+        weights_url = models.ResNet50_Weights.IMAGENET1K_V1.url
+    else:
+        assert False, "Can only run with 18 or 50 layer resnet"
     blocks = {18: [2, 2, 2, 2], 50: [3, 4, 6, 3]}[num_layers]
     block_type = {18: models.resnet.BasicBlock, 50: models.resnet.Bottleneck}[num_layers]
     model = ResNetMultiImageInput(block_type, blocks, num_input_images=num_input_images)
 
     if pretrained:
-        loaded = model_zoo.load_url(models.resnet.model_urls['resnet{}'.format(num_layers)])
+        loaded = torch.hub.load_state_dict_from_url(weights_url)
         loaded['conv1.weight'] = torch.cat(
             [loaded['conv1.weight']] * num_input_images, 1) / num_input_images
         model.load_state_dict(loaded)
